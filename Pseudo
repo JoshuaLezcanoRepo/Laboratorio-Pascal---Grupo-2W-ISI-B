@@ -1,0 +1,123 @@
+ACCIÓN_ESCENARIO.7_ES
+AMBIENTE
+	lan_traffic = Registro
+		Clave: Registro
+			Prot_Red: (1...3)
+			Prot_Transp: (1...2)
+		Fin_Reg
+		Puerto_Origen: (1...65535)
+		Puerto_Dest: (1...65535)
+		Horario: Registro
+			hh: (8...15)
+			mm: (1...59)
+			ss: (1...59)
+		Fin_Reg
+		Dia: Registro
+			dd: (4...6)
+			mm = 07
+			aaaa = 2022
+		Fin_Reg
+		IPOrigen: AN(15)
+		IPDestino: AN(15)
+	Fin_Registro
+	
+	Arch: Archivo de lan_traffic ordenado por Clave
+	Reg: lan_traffic
+	
+	ResRed: (1...3)
+	ResTransp: (1...2)
+	
+	TotRed80: N(6)
+	TotRed21: N(6)
+	TotRed25: N(6)
+	TotTransp80: N(6)
+	TotTransp21: N(6)
+	TotTransp25: N(6)
+	TotRedGral: N(6)
+	TotTranspGral: N(6)
+	
+	Acción VER_CORTE es
+		Si reg.Clave.Prot_Red <> ResRed entonces
+			CORTE_2
+		Contrario
+			Si reg.Clave.Prot_Transp <> ResTransp entonces
+				CORTE_1
+			Fin_Si
+		Fin_Si
+	Fin_Acción
+	
+	Acción CORTE_2 es
+		CORTE_1
+		Esc('Total de paquetes enviados al puerto destino 80 correspondientes al Protocolo de Red', ResRed, 'es de', TotRed80)
+		Esc('Total de paquetes enviados al puerto destino 21 correspondientes al Protocolo de Red', ResRed, 'es de', TotRed21)
+		Esc('Total de paquetes enviados al puerto destino 25 correspondientes al Protocolo de Red', ResRed, 'es de', TotRed25)
+		TotRedGral:= TotRed80 + TotRed25 + TotRed21
+		Esc('Total de paquetes enviados correspondientes al Protocolo de Red', ResRed, 'es de', TotRedGral)
+		TotRed80:= 0
+		TotRed21:= 0
+		TotRed25:= 0
+		ResRed:= reg.Clave.Prot_Red
+	Fin_Acción
+
+	Acción CORTE_1 es
+		Esc('Total de paquetes enviados al puerto destino 80 correspondientes al Protocolo de Red', ResRed, 'y al Protocolo de Transporte', ResTransp, 'es de', TotTransp80)
+		Esc('Total de paquetes enviados al puerto destino 21 correspondientes al Protocolo de Red', ResRed, 'y al Protocolo de Transporte', ResTransp, 'es de', TotTransp21)
+		Esc('Total de paquetes enviados al puerto destino 25 correspondientes al Protocolo de Red', ResRed, 'y al Protocolo de Transporte', ResTransp, 'es de', TotTransp25)
+		TotTranspGral:= TotTransp80 + TotTransp21 + TotTransp25
+		Esc('Total de paquetes enviados correspondientes al Protocolo de Red', ResRed, 'y al protocolo de Transporte', ResTransp, 'es de', TotTranspGral)
+		TotRed80:= TotRed80 + TotTransp80
+		TotRed21:= TotRed21 + TotTransp21
+		TotRed25:= TotRed25 + TotTransp25
+		TotTransp80:= 0
+		TotTransp21:= 0
+		TotTransp25:= 0
+		ResTransp:= reg.Clave.Prot_Transp
+	Fin_Acción
+
+	VÁLIDO: [80, 21, 25]
+
+	Acción TRATAR_REGISTRO es
+		Según Reg.Puerto_Dest hacer
+			=80: TotTransp80:= TotTransp80 + 1
+			=21: TotTransp21:= TotTransp21 + 1
+			=25: TotTransp25:= TotTransp25 + 1
+		Fin_Según
+		Si Reg.Puerto_Dest EN VÁLIDO
+			Esc('Existe una posibilidad de escaneo para ataques')
+			Esc('Protocolo de Red:', Reg.Clave.Prot_Red)
+			Esc('Protocolo de Transporte:', Reg.Clave.Prot_Transp)
+			Esc('Puerto de origen:', Reg.Puerto_Origen)
+			Esc('Puerto de destino:', Reg.Puerto_Dest)
+			Esc('Hora:', Reg.Horario.hh, ':', Reg.Horario.mm, ':', Reg.Horario.ss)
+			Esc('Fecha:', Reg.Dia.dd, '/', Reg.Dia.mm, '/', Reg.Dia.aaaa)
+			Esc('IP de Origen:', IPOrigen)
+			Esc('IP de Destino:', IPDestino)
+		Fin_Si
+	Fin_Acción
+	
+	
+PROCESO
+	ABRIR E/(Arch)
+	Leer(Arch, Reg)
+	
+	ResRed:= reg.Clave.Prot_Red
+	ResTransp:= reg.Clave.Prot_Transp
+	
+	TotRed80:= 0
+	TotRed21:= 0
+	TotRed25:= 0
+	TotTransp80:= 0
+	TotTransp21:= 0
+	TotTransp25:= 0
+	TotRedGral:= 0
+	TotTranspGral:= 0
+
+	Mientras NFDA(Arch) hacer
+		VER_CORTE
+		TRATAR_REGISTRO
+		Leer(Arch, Reg)
+	Fin_Mientras
+
+	CORTE_2
+	CERRAR(Arch)
+Fin_Acción
